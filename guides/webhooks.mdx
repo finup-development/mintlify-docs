@@ -1,0 +1,334 @@
+---
+title: "Webhooks"
+description: "Subscribe to Finup webhook events, verify signatures, and handle retries."
+icon: "webhook"
+---
+
+Finup can send server-to-server webhook events to your HTTPS endpoint after account activity changes. Subscribe once per account, get the signing secret from the subscription details endpoint, and verify every delivery with the `x-webhook-signature` header.
+
+<Info>
+  Webhook subscription endpoints use API key authentication. Send your API key in the `x-api-key` header.
+</Info>
+
+## Subscribe
+
+Create a subscription with the URL that should receive webhook events.
+
+```bash
+curl --request POST "https://api.finup.io/backend/webhooks/webhooks" \
+  --header "x-api-key: $FINUP_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "url": "https://example.com/finup/webhooks"
+  }'
+```
+
+The response contains the created subscription record.
+
+```json
+{
+  "result": {
+    "_id": "67fc3d0a766d7a2c1fafefb8",
+    "url": "https://example.com/finup/webhooks",
+    "status": "enabled",
+    "account": "67fc3d0a766d7a2c1fafefb9",
+    "secret": "f2933800c06e7ed7c1b1fd01c8a8165d9851174b5651f1f2aef5429a7a13aa2d"
+  }
+}
+```
+
+Use `GET /webhooks/webhooks` after creation as the source for the usable plaintext signing secret. Do not use the create or update response as the source of truth for signature verification.
+
+Only one subscription is allowed per account. Creating a second subscription returns `404` with `Account Already subscribed`.
+
+## Manage a subscription
+
+Get the current subscription and plaintext signing secret:
+
+```bash
+curl --request GET "https://api.finup.io/backend/webhooks/webhooks" \
+  --header "x-api-key: $FINUP_API_KEY"
+```
+
+```json
+{
+  "result": {
+    "_id": "67fc3d0a766d7a2c1fafefb8",
+    "url": "https://example.com/finup/webhooks",
+    "status": "enabled",
+    "account": "67fc3d0a766d7a2c1fafefb9",
+    "secret": "f2933800c06e7ed7c1b1fd01c8a8165d9851174b5651f1f2aef5429a7a13aa2d"
+  }
+}
+```
+
+Store `secret` server-side. Use it to verify the `x-webhook-signature` header on every delivery.
+
+Update the destination URL or pause delivery:
+
+```bash
+curl --request PATCH "https://api.finup.io/backend/webhooks/webhooks" \
+  --header "x-api-key: $FINUP_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "url": "https://example.com/new-webhook-url",
+    "status": "enabled"
+  }'
+```
+
+Use `status: "disabled"` to pause delivery. Disabled subscriptions do not receive new webhook events.
+
+When a subscription already exists, a successful update returns:
+
+```json
+{
+  "result": {
+    "status": "SUCCESS",
+    "code": 200
+  }
+}
+```
+
+<Warning>
+  There is no delete endpoint and no separate secret rotation endpoint. If you need a new secret, contact support.
+</Warning>
+
+## Delivery format
+
+Finup sends a `POST` request to your subscription URL.
+
+```http
+Content-Type: application/json
+x-webhook-signature: <hex HMAC SHA-256>
+```
+
+The signature is `HMAC-SHA256(JSON.stringify(body), secret)` encoded as lowercase hex. Verify against the exact JSON body Finup sent.
+
+```javascript
+import crypto from "node:crypto";
+
+function verifyFinupWebhook(body, signature, secret) {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(JSON.stringify(body))
+    .digest("hex");
+
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+}
+```
+
+Return any `2xx` response when your system has accepted the event. Finup stores your response body and status code in delivery history.
+
+## Retries
+
+Finup sends the first attempt immediately. If your endpoint returns a non-`2xx` response or the request fails, the event remains `pending` and is retried.
+
+| Failed attempt | Next retry delay |
+| --- | --- |
+| Initial send | 1 minute |
+| 1 | 2 minutes |
+| 2 | 2 minutes |
+| 3 | 5 minutes |
+| 4 | 20 minutes |
+| 5 | 30 minutes |
+| 6 | 60 minutes |
+| 7 | 240 minutes |
+| 8 | 360 minutes |
+
+After the final retry fails, the delivery status becomes `fail`. A successful retry changes the delivery status to `success`.
+
+Your endpoint should be idempotent. Finup may deliver the same event more than once when a previous attempt failed or timed out.
+
+## Delivery history
+
+Use delivery history to inspect sent events, retry status, response bodies, and response status codes.
+
+```bash
+curl --request POST "https://api.finup.io/backend/webhooks/webhooks/history" \
+  --header "x-api-key: $FINUP_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "pagination": {
+      "page": 1,
+      "per_page": 50,
+      "sort_by": "last_sending",
+      "sort_direction": "desc"
+    }
+  }'
+```
+
+Each history item includes:
+
+| Field | Description |
+| --- | --- |
+| `body` | Webhook payload sent to your endpoint |
+| `config` | Delivery headers, including the signature used for the attempt |
+| `responses` | Stored response body, time, and status code for each attempt |
+| `last_sending` | Last attempt time |
+| `next_sending` | Next retry time while status is `pending` |
+| `attempts` | Number of attempts already made |
+| `status` | `pending`, `success`, or `fail` |
+
+Example response:
+
+```json
+{
+  "result": [
+    {
+      "_id": "67fc3d0a766d7a2c1fafefc1",
+      "body": {
+        "id": "67c48f6fc8614632e0b338fc",
+        "masked_PAN": "1234 56** **** 5678",
+        "name": "Marketing card",
+        "account_id": "67fc3d0a766d7a2c1fafefb9",
+        "status": "Enabled",
+        "updated_at": "2026-07-08T12:00:00.000Z",
+        "webhook_type": "CardUpdate"
+      },
+      "config": {
+        "Content-Type": "application/json",
+        "x-webhook-signature": "ab12cd34..."
+      },
+      "responses": [
+        {
+          "response": { "received": true },
+          "time": "2026-07-08T12:00:00.000Z",
+          "status_code": 200
+        }
+      ],
+      "url": "https://example.com/finup/webhooks",
+      "last_sending": "2026-07-08T12:00:00.000Z",
+      "next_sending": "null",
+      "attempts": 1,
+      "status": "success",
+      "subscribe": "67fc3d0a766d7a2c1fafefb8"
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_records": 1,
+    "total_pages": 1
+  }
+}
+```
+
+## Event types
+
+Every event has a `webhook_type` field. Use it to route the payload.
+
+Backend currently emits `CardUpdate`. The Webhooks microservice also uses the same account subscription for `Transaction`, `Deposit`, `Otp`, and `OtpWallet`.
+
+### CardUpdate
+
+Sent when the Backend service updates card status data.
+
+```json
+{
+  "id": "67c48f6fc8614632e0b338fc",
+  "masked_PAN": "1234 56** **** 5678",
+  "name": "Marketing card",
+  "account_id": "67fc3d0a766d7a2c1fafefb9",
+  "status": "Enabled",
+  "updated_at": "2026-07-08T12:00:00.000Z",
+  "webhook_type": "CardUpdate"
+}
+```
+
+### Transaction
+
+Sent when a card transaction is created or updated.
+
+```json
+{
+  "id": "69289796211cd0ba00ecc9db",
+  "account_id": "6878f06012024f0a66f1b833",
+  "source_id": "6900c4a4611a0d534ad72956",
+  "source": "Card",
+  "status": "Approved",
+  "side": "Debit",
+  "amount": 30,
+  "currency": "USD",
+  "type": "Card",
+  "created_at": "2026-07-08T12:00:00.000Z",
+  "updated_at": "2026-07-08T12:00:00.000Z",
+  "card": {
+    "id": "6900c4a4611a0d534ad72956",
+    "masked_PAN": "4549 24** **** 4124",
+    "name": "App Devs"
+  },
+  "card_data": {
+    "merchant_name": "VYKE HOLDING LIMITED",
+    "original_amount": 30,
+    "original_currency": "USD",
+    "decline_code": null
+  },
+  "webhook_type": "Transaction"
+}
+```
+
+### Deposit
+
+Sent when a crypto or invoice deposit is approved.
+
+```json
+{
+  "id": "69289796211cd0ba00ecc9db",
+  "account_id": "6878f06012024f0a66f1b833",
+  "status": "Approved",
+  "amount": 100,
+  "fee_amount": 1,
+  "currency": "USD",
+  "created_at": "2026-07-08T12:00:00.000Z",
+  "updated_at": "2026-07-08T12:00:00.000Z",
+  "reference": "USD2156306518",
+  "webhook_type": "Deposit"
+}
+```
+
+### Otp
+
+Sent when a payment OTP is created for a card.
+
+```json
+{
+  "id": "67fc3d0a766d7a2c1fafefc1",
+  "account_id": "67fc3d0a766d7a2c1fafefb9",
+  "code": "123456",
+  "card_id": "67c48f6fc8614632e0b338fc",
+  "amount": 30,
+  "currency": "USD",
+  "created_at": "2026-07-08T12:00:00.000Z",
+  "updated_at": "2026-07-08T12:00:00.000Z",
+  "card": {
+    "id": "67c48f6fc8614632e0b338fc",
+    "masked_PAN": "1234 56** **** 5678",
+    "name": "Marketing card"
+  },
+  "webhook_type": "Otp"
+}
+```
+
+### OtpWallet
+
+Sent when an Apple Pay or Google Pay wallet OTP is created for a card.
+
+```json
+{
+  "id": "67fc3d0a766d7a2c1fafefc1",
+  "account_id": "67fc3d0a766d7a2c1fafefb9",
+  "code": "123456",
+  "card_id": "67c48f6fc8614632e0b338fc",
+  "device": "apple",
+  "created_at": "2026-07-08T12:00:00.000Z",
+  "updated_at": "2026-07-08T12:00:00.000Z",
+  "card": {
+    "id": "67c48f6fc8614632e0b338fc",
+    "masked_PAN": "1234 56** **** 5678",
+    "name": "Marketing card"
+  },
+  "webhook_type": "OtpWallet"
+}
+```
