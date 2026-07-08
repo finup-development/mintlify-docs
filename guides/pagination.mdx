@@ -1,0 +1,40 @@
+---
+title: "Pagination"
+description: "Use pagination objects for Finup list endpoints."
+icon: "list-filter"
+---
+
+List endpoints use a `pagination` object in the request body.
+
+```json
+{
+  "pagination": {
+    "page": 1,
+    "per_page": 25,
+    "sort_by": "created_at",
+    "sort_direction": "desc"
+  }
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | number | Page number, starting at `1`. |
+| `per_page` | number | Number of records to return. |
+| `sort_by` | string | Optional sort field supported by the endpoint. |
+| `sort_direction` | string | `asc` or `desc`. |
+
+Paginated responses include page metadata when the endpoint supports total counts.
+
+```json
+{
+  "result": {
+    "current_page": 1,
+    "total_records": 125,
+    "total_pages": 5,
+    "data": []
+  }
+}
+```
+
+For transaction tables, use the same filters for `/transactions`, `/transactions/count`, and `/transactions/summary`.

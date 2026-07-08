@@ -1,0 +1,28 @@
+---
+title: "Errors"
+description: "Understand common Finup API error responses."
+icon: "circle-alert"
+---
+
+Errors use an HTTP status code and a JSON body.
+
+```json
+{
+  "status_code": 400,
+  "error_message": "Validation failed"
+}
+```
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid request or business rule error |
+| `401` | Missing or invalid credentials |
+| `403` | Authenticated user does not have permission |
+| `404` | Resource not found |
+| `409` | State conflict |
+| `420` | Insufficient balance |
+| `429` | Rate limit exceeded |
+
+<Tip>
+  Log the HTTP status, request id if present, endpoint, and sanitized request metadata. Do not log API keys, tokens, full card data, or customer secrets.
+</Tip>

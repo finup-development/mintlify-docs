@@ -1,0 +1,41 @@
+---
+title: "Authentication"
+description: "Authenticate Finup API requests with API keys."
+icon: "key-round"
+---
+
+Finup API integrations authenticate with API keys.
+
+Send your API key in the `x-api-key` header on every request.
+
+## API key request
+
+```bash
+curl --request GET "https://api.finup.dev/account" \
+  --header "x-api-key: $FINUP_API_KEY"
+```
+
+<Warning>
+  Keep API keys server-side. Do not put them in browsers, mobile apps, logs, analytics events, or customer-visible error messages.
+</Warning>
+
+## Response envelope
+
+Successful responses are usually wrapped in `result`.
+
+```json
+{
+  "result": {
+    "status": true
+  }
+}
+```
+
+Authentication failures return `401`.
+
+```json
+{
+  "status_code": 401,
+  "error_message": "Unauthorized"
+}
+```

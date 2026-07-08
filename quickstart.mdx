@@ -1,47 +1,35 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "Make your first Finup API request."
+icon: "rocket"
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+Use the sandbox API while building and testing your integration.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
-    ```bash
-    npm install your-package
-    ```
+  <Step title="Get access">
+    Ask Finup for sandbox access and an API key for your integration.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Retrieve an API key">
+    Get an API key from the support team.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
+  <Step title="Call the API">
     ```bash
-    your-cli start
+    curl --request POST "https://api.finup.dev/accounts" \
+      --header "x-api-key: $FINUP_API_KEY" \
+      --header "Content-Type: application/json"
     ```
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+Most successful responses use a `result` envelope.
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+```json
+{
+  "result": {
+    "id": "66b9d4f5a22f2a00124a1c5e"
+  }
+}
+```
