@@ -1,0 +1,1415 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Finup Public API",
+    "version": "1.0.0",
+    "description": "Client-facing Finup API reference generated from current public endpoint metadata."
+  },
+  "servers": [
+    {
+      "url": "https://api.finup.io/backend",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Accounts",
+      "description": "Current account, account setup, and account capabilities."
+    },
+    {
+      "name": "Transactions",
+      "description": "Account transaction lists and aggregates."
+    },
+    {
+      "name": "Cards",
+      "description": "Card issuing, listing, funding, and status changes."
+    }
+  ],
+  "paths": {
+    "/accounts": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Create account",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/AccountCreated"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/account": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Get account capabilities",
+        "description": "Returns current account limits, capabilities, status, and fees.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/CurrentAccount"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/bins": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Get card types available for the account",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CardType"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/transactions": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List account transactions",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Transaction"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/transactions/count": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Count filtered transactions",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionCount"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/transactions/summary": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Summarize filtered transactions",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/cards": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Issue cards",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueCardsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Card"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/cards/get": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "List account cards",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Card"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/cards/{card_id}": {
+      "get": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Get card details",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/Card"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/card/{card_id}/deposit": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Deposit funds to card",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardAmountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/CardOperation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/card/{card_id}/withdraw": {
+      "post": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Withdraw funds from card",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardWithdrawRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/CardOperation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/cards/freeze": {
+      "patch": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Freeze cards",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIdsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/CardStatusChange"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/cards/unfreeze": {
+      "patch": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Unfreeze cards",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIdsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/CardStatusChange"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/cards/close": {
+      "patch": {
+        "tags": [
+          "Cards"
+        ],
+        "summary": "Close cards",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIdsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/CardStatusChange"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    },
+    "schemas": {
+      "PaginationInput": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "per_page": {
+            "type": "integer",
+            "example": 50
+          },
+          "sort_by": {
+            "type": "string",
+            "example": "created_at"
+          },
+          "sort_direction": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "example": "desc"
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "current_page": {
+            "type": "integer",
+            "example": 1
+          },
+          "total_records": {
+            "type": "integer",
+            "example": 42
+          },
+          "total_pages": {
+            "type": "integer",
+            "nullable": true,
+            "example": 5
+          }
+        }
+      },
+      "AccountCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67fc3d0a766d7a2c1fafefb8"
+          },
+          "status": {
+            "type": "string",
+            "example": "Enabled"
+          }
+        }
+      },
+      "AccountLimits": {
+        "type": "object",
+        "properties": {
+          "issuing_limit": {
+            "type": "integer",
+            "nullable": true,
+            "example": 50
+          },
+          "free_cards": {
+            "type": "integer",
+            "nullable": true,
+            "example": 3
+          },
+          "used_free_cards": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "minimal_deposit": {
+            "type": "string",
+            "nullable": true,
+            "example": "100.00"
+          }
+        }
+      },
+      "AccountCapabilities": {
+        "type": "object",
+        "properties": {
+          "business_access": {
+            "type": "boolean",
+            "example": true
+          },
+          "advertising_access": {
+            "type": "boolean",
+            "example": false
+          },
+          "platinum_access": {
+            "type": "boolean",
+            "example": false
+          },
+          "api_access": {
+            "type": "boolean",
+            "example": true
+          },
+          "internal_transfer": {
+            "type": "boolean",
+            "example": true
+          },
+          "negative_balance_guard": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CurrentAccount": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true,
+            "example": "Enabled"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/AccountLimits"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AccountCapabilities"
+          },
+          "fees": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "example": {
+              "transaction_fee": "0.01",
+              "business_issuing_fee": "4"
+            }
+          }
+        }
+      },
+      "CardType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67c401f9a5b7cde210f44567"
+          },
+          "name": {
+            "type": "string",
+            "example": "Business"
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "issuing_fee": {
+            "type": "string",
+            "example": "4.00"
+          },
+          "minimal_deposit": {
+            "type": "string",
+            "nullable": true,
+            "example": "100.00"
+          }
+        }
+      },
+      "TransactionFilters": {
+        "type": "object",
+        "properties": {
+          "side": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Debit"
+            ]
+          },
+          "type": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Card"
+            ]
+          },
+          "status": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Approved",
+              "Pending"
+            ]
+          },
+          "card_id": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "67fc3d0a766d7a2c1fafefb8"
+            ]
+          },
+          "search": {
+            "type": "string",
+            "example": "spotify"
+          },
+          "from_created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-01T00:00:00.000Z"
+          },
+          "to_created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-30T23:59:59.999Z"
+          },
+          "include_internal_transfer": {
+            "type": "boolean",
+            "example": false
+          },
+          "own": {
+            "type": "boolean",
+            "example": true
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "67fc3d0a766d7a2c1fafefb9"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Europe/Warsaw"
+          }
+        }
+      },
+      "TransactionsRequest": {
+        "type": "object",
+        "required": [
+          "pagination"
+        ],
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/TransactionFilters"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationInput"
+          }
+        }
+      },
+      "PaymentCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67c48f6fc8614632e0b338fc"
+          },
+          "name": {
+            "type": "string",
+            "example": "Marketing card"
+          },
+          "masked_PAN": {
+            "type": "string",
+            "nullable": true,
+            "example": "1234 56•• •••• 5678"
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "65fc4e136fb5c06281ac5e4e"
+          },
+          "account_id": {
+            "type": "string",
+            "example": "622c22cf766d7a2c1fafe2d6"
+          },
+          "user_id": {
+            "type": "string",
+            "example": "65fc3d09766d7a2c1fafef99"
+          },
+          "status": {
+            "type": "string",
+            "example": "Approved"
+          },
+          "side": {
+            "type": "string",
+            "example": "Credit"
+          },
+          "amount": {
+            "type": "number",
+            "example": 150
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "type": {
+            "type": "string",
+            "example": "ExternalTransfer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source_identifier": {
+            "type": "string",
+            "nullable": true,
+            "example": "USD2156306518"
+          },
+          "card": {
+            "$ref": "#/components/schemas/PaymentCard"
+          },
+          "card_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "fee_data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "external_transfer_data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "TransactionCount": {
+        "type": "object",
+        "properties": {
+          "total_records": {
+            "type": "integer",
+            "example": 42
+          },
+          "total_pages": {
+            "type": "integer",
+            "example": 5
+          }
+        }
+      },
+      "TransactionSummary": {
+        "type": "object",
+        "properties": {
+          "spent": {
+            "type": "string",
+            "example": "1250.00"
+          },
+          "incoming": {
+            "type": "string",
+            "example": "2500.00"
+          },
+          "pending": {
+            "type": "string",
+            "example": "100.00"
+          },
+          "fees": {
+            "type": "string",
+            "example": "15.00"
+          },
+          "declined": {
+            "type": "string",
+            "example": "0.00"
+          },
+          "net": {
+            "type": "string",
+            "example": "1235.00"
+          }
+        }
+      },
+      "CardFilters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Enabled",
+              "Canceled"
+            ]
+          },
+          "own": {
+            "type": "boolean",
+            "example": true
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "search": {
+            "type": "string",
+            "example": "marketing"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bin_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "balance_min": {
+            "type": "number",
+            "example": 10
+          },
+          "balance_max": {
+            "type": "number",
+            "example": 1000
+          }
+        }
+      },
+      "CardsRequest": {
+        "type": "object",
+        "required": [
+          "pagination"
+        ],
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/CardFilters"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationInput"
+          }
+        }
+      },
+      "IssueCardsRequest": {
+        "type": "object",
+        "required": [
+          "bin_id",
+          "name"
+        ],
+        "properties": {
+          "bin_id": {
+            "type": "string",
+            "example": "67c401f9a5b7cde210f44567"
+          },
+          "user_id": {
+            "type": "string",
+            "example": "67fc3d09766d7a2c1fafef99"
+          },
+          "name": {
+            "type": "string",
+            "example": "Marketing card"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Q3 campaigns"
+          },
+          "balance_threshold": {
+            "type": "number",
+            "example": 25
+          },
+          "top_up_amount": {
+            "type": "number",
+            "example": 100
+          },
+          "quantity": {
+            "type": "integer",
+            "example": 1
+          },
+          "amount": {
+            "type": "integer",
+            "example": 100
+          },
+          "promo": {
+            "type": "string",
+            "example": "WELCOME"
+          }
+        }
+      },
+      "Card": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67c48f6fc8614632e0b338fc"
+          },
+          "name": {
+            "type": "string",
+            "example": "Marketing card"
+          },
+          "bin_id": {
+            "type": "string",
+            "example": "67bcf2abf8e89d31c5f8995e"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Credit"
+          },
+          "status": {
+            "type": "string",
+            "example": "Active"
+          },
+          "user": {
+            "type": "string",
+            "example": "67aa1b2c3d4e5f6789abcdef"
+          },
+          "EXP": {
+            "type": "string",
+            "example": "**/**"
+          },
+          "account": {
+            "type": "string",
+            "example": "67c401f9a5b7cde210f44567"
+          },
+          "balance": {
+            "type": "number",
+            "example": 50
+          },
+          "deposit": {
+            "type": "number",
+            "example": 1000
+          },
+          "withdraw": {
+            "type": "number",
+            "example": 500
+          },
+          "spent": {
+            "type": "number",
+            "example": 450
+          },
+          "masked_PAN": {
+            "type": "string",
+            "example": "1234 56•• •••• 5678"
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "category": {
+            "type": "string",
+            "example": "Business"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "PAN": {
+            "type": "string",
+            "example": "1234567812345678"
+          },
+          "CVV": {
+            "type": "string",
+            "example": "123"
+          },
+          "3ds": {
+            "type": "boolean",
+            "example": true
+          },
+          "address": {
+            "type": "string",
+            "example": "2381 Zanker Rd Ste 110, San Jose, CA, 95131, US"
+          }
+        }
+      },
+      "CardAmountRequest": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "example": 100
+          },
+          "user_id": {
+            "type": "string",
+            "example": "67fc3d09766d7a2c1fafef99"
+          }
+        }
+      },
+      "CardWithdrawRequest": {
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "example": 100
+          }
+        }
+      },
+      "CardIdsRequest": {
+        "type": "object",
+        "required": [
+          "card_ids"
+        ],
+        "properties": {
+          "card_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "67c48f6fc8614632e0b338fc"
+            ]
+          }
+        }
+      },
+      "CardOperation": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "code": {
+            "type": "integer",
+            "example": 201
+          }
+        }
+      },
+      "CardStatusChange": {
+        "type": "object",
+        "properties": {
+          "Changed cards": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "67c48f6fc8614632e0b338fc"
+            ]
+          },
+          "Unchanged cards due to inappropriate status": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "67c48f6fc8614632e0b558fc"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

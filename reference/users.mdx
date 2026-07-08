@@ -1,0 +1,36 @@
+---
+title: "Users"
+description: "Read and update the current Finup user profile."
+icon: "user"
+---
+
+The current-user endpoints use the authenticated user from the request credentials.
+
+<Note>
+  These endpoints are documented manually because the current filtered public OpenAPI source does not include them yet.
+</Note>
+
+## Get current user
+
+```http
+GET /user
+x-api-key: <key>
+```
+
+Returns the current user profile.
+
+```json
+{
+  "result": {
+    "id": "66b9d4f5a22f2a00124a1c5e",
+    "first_name": "Alex",
+    "last_name": "Morgan",
+    "email": "alex@example.com",
+    "email_confirmed": true,
+    "two_factor_status": "Enabled",
+    "balance": "1000.00",
+    "deposit": "2500.00",
+    "withdraw": "1500.00"
+  }
+}
+```

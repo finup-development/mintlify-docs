@@ -1,72 +1,108 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mintlify Starter Kit",
-  "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+  "name": "Finup API",
+  "description": "Client-facing API documentation for Finup accounts, cards, users, and transactions.",
+  "logo": {
+    "light": "/logo/finup-blck.svg",
+    "dark": "/logo/finup-wht.svg"
   },
   "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+  "colors": {
+    "primary": "#3B66FF",
+    "light": "#6F8CFF",
+    "dark": "#2C54DE"
   },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+  "icons": {
+    "library": "lucide"
+  },
+  "api": {
+    "openapi": "openapi.json",
+    "playground": {
+      "display": "interactive",
+      "proxy": true
+    },
+    "examples": {
+      "languages": ["curl", "javascript", "python"],
+      "defaults": "required"
+    }
   },
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "App",
+        "href": "https://app.finup.io"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
-    }
+    ]
   },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Start",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "guides/authentication",
+              "guides/pagination",
+              "guides/errors"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "icon": "square-terminal",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "reference/overview",
+              "reference/users"
+            ]
+          },
+          {
+            "group": "Accounts",
+            "openapi": "openapi.json",
+            "pages": [
+              "POST /accounts",
+              "GET /account",
+              "GET /bins"
+            ]
+          },
+          {
+            "group": "Transactions",
+            "openapi": "openapi.json",
+            "pages": [
+              "POST /transactions",
+              "POST /transactions/count",
+              "POST /transactions/summary"
+            ]
+          },
+          {
+            "group": "Cards",
+            "openapi": "openapi.json",
+            "pages": [
+              "POST /cards",
+              "POST /cards/get",
+              "GET /cards/{card_id}",
+              "POST /card/{card_id}/deposit",
+              "POST /card/{card_id}/withdraw",
+              "PATCH /cards/freeze",
+              "PATCH /cards/unfreeze",
+              "PATCH /cards/close"
+            ]
+          }
+        ]
+      }
     ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "website": "https://finup.io"
     }
   }
 }

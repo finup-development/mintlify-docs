@@ -1,0 +1,36 @@
+---
+title: "Finup API"
+description: "Use the Finup API to manage accounts, cards, users, and transaction data."
+icon: "landmark"
+---
+
+The Finup API lets approved clients integrate with Finup accounts, cards, and transaction data.
+
+This documentation is intentionally limited to client-facing endpoints. Internal admin, frontend-only, support, marketing, script, and webhook-processing endpoints are not included here.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/quickstart">
+    Make your first authenticated request against the sandbox API.
+  </Card>
+  <Card title="Authentication" icon="key-round" href="/guides/authentication">
+    Learn how to authenticate API requests with `x-api-key`.
+  </Card>
+  <Card title="Accounts" icon="wallet-cards" href="/api-reference/accounts/create-account">
+    Create accounts and read account balances, wallets, bins, and card capabilities.
+  </Card>
+  <Card title="Cards" icon="credit-card" href="/api-reference/cards/issue-cards">
+    Issue cards, move funds, and change card status.
+  </Card>
+</CardGroup>
+
+## Base URL
+**Production:** `https://api.finup.io/backend`
+
+## Public API scope
+
+The first version of these docs includes:
+
+- Account creation, capabilities, limits, fees, and available card bins
+- Transaction list, count, and summary
+- Card issuing, listing, details, funding, withdrawal, freeze, unfreeze, and close
+- API key authentication guidance

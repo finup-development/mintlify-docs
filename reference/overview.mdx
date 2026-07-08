@@ -1,0 +1,17 @@
+---
+title: "API reference overview"
+description: "Public endpoint groups included in the Finup API reference."
+icon: "square-terminal"
+---
+
+The API reference is generated from `docs/openapi.json`.
+
+That file is produced by `scripts/generate-public-openapi.mjs`, which filters the backend Swagger document through an explicit endpoint whitelist. This prevents internal endpoints from appearing in client docs when the backend Swagger document contains admin, support, script, frontend-only, or infrastructure routes.
+
+## Included groups
+
+| Group | Included now |
+| --- | --- |
+| Accounts | Create account, get account capabilities, card bins |
+| Transactions | Transaction list, count, summary |
+| Cards | Issue, list, get, deposit, withdraw, freeze, unfreeze, close |
