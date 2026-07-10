@@ -809,7 +809,7 @@
           },
           "status": {
             "type": "string",
-            "example": "Enabled"
+            "example": "allowed"
           }
         }
       },
@@ -873,7 +873,7 @@
           "status": {
             "type": "string",
             "nullable": true,
-            "example": "Enabled"
+            "example": "allowed"
           },
           "limits": {
             "$ref": "#/components/schemas/AccountLimits"
@@ -1145,8 +1145,8 @@
               "type": "string"
             },
             "example": [
-              "Enabled",
-              "Canceled"
+              "enabled",
+              "canceled"
             ]
           },
           "own": {
