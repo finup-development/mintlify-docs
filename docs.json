@@ -51,6 +51,12 @@
               "guides/pagination",
               "guides/errors"
             ]
+          },
+          {
+            "group": "MCP",
+            "pages": [
+              "guides/mcp"
+            ]
           }
         ]
       },
