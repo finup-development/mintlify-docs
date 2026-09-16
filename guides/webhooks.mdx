@@ -15,7 +15,7 @@ Finup can send server-to-server webhook events to your HTTPS endpoint after acco
 Create a subscription with the URL that should receive webhook events.
 
 ```bash
-curl --request POST "https://api.finup.io/backend/webhooks/webhooks" \
+curl --request POST "https://api.finup.io/backend/webhooks" \
   --header "x-api-key: $FINUP_API_KEY" \
   --header "Content-Type: application/json" \
   --data '{
@@ -46,7 +46,7 @@ Only one subscription is allowed per account. Creating a second subscription ret
 Get the current subscription and plaintext signing secret:
 
 ```bash
-curl --request GET "https://api.finup.io/backend/webhooks/webhooks" \
+curl --request GET "https://api.finup.io/backend/webhooks" \
   --header "x-api-key: $FINUP_API_KEY"
 ```
 
@@ -67,7 +67,7 @@ Store `secret` server-side. Use it to verify the `x-webhook-signature` header on
 Update the destination URL or pause delivery:
 
 ```bash
-curl --request PATCH "https://api.finup.io/backend/webhooks/webhooks" \
+curl --request PATCH "https://api.finup.io/backend/webhooks" \
   --header "x-api-key: $FINUP_API_KEY" \
   --header "Content-Type: application/json" \
   --data '{
@@ -147,7 +147,7 @@ Your endpoint should be idempotent. Finup may deliver the same event more than o
 Use delivery history to inspect sent events, retry status, response bodies, and response status codes.
 
 ```bash
-curl --request POST "https://api.finup.io/backend/webhooks/webhooks/history" \
+curl --request POST "https://api.finup.io/backend/webhooks/history" \
   --header "x-api-key: $FINUP_API_KEY" \
   --header "Content-Type: application/json" \
   --data '{
