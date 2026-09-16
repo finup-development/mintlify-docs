@@ -4,9 +4,11 @@ description: "Public endpoint groups included in the Finup API reference."
 icon: "square-terminal"
 ---
 
-The API reference is generated from `docs/openapi.json`.
+The API reference is generated from `openapi.json` in this repository.
 
-That file is produced by `scripts/generate-public-openapi.mjs`, which filters the backend Swagger document through an explicit endpoint whitelist. This prevents internal endpoints from appearing in client docs when the backend Swagger document contains admin, support, script, frontend-only, or infrastructure routes.
+That file is produced by `scripts/generate-public-openapi.mjs` in the Backend repository (`npm run docs:openapi`), which declares an explicit whitelist of client-facing operations. Internal admin, support, script, frontend-only, and infrastructure routes are never part of it, so they cannot leak into client docs.
+
+Do not hand-edit `openapi.json`. Change the generator in the Backend repository and regenerate.
 
 ## Included groups
 
@@ -15,3 +17,7 @@ That file is produced by `scripts/generate-public-openapi.mjs`, which filters th
 | Accounts | Create account, get account capabilities, card bins |
 | Transactions | Transaction list, count, summary |
 | Cards | Issue, list, get, deposit, withdraw, freeze, unfreeze, close |
+
+## Money values
+
+Amounts are transported as decimal strings in USD (for example `"150.00"`) on the account, transaction, and card-list endpoints, so clients never have to parse a float. The single-card and card-issuing responses still return the stored numbers.

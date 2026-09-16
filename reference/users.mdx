@@ -17,20 +17,32 @@ GET /user
 x-api-key: <key>
 ```
 
-Returns the current user profile.
+Returns the current user profile. Unlike most endpoints, this response is **not** wrapped in a `result` envelope.
 
 ```json
 {
-  "result": {
-    "id": "66b9d4f5a22f2a00124a1c5e",
-    "first_name": "Alex",
-    "last_name": "Morgan",
-    "email": "alex@example.com",
-    "email_confirmed": true,
-    "two_factor_status": "enabled",
-    "balance": "1000.00",
-    "deposit": "2500.00",
-    "withdraw": "1500.00"
-  }
+  "id": "66b9d4f5a22f2a00124a1c5e",
+  "first_name": "Alex",
+  "last_name": "Morgan",
+  "email": "alex@example.com",
+  "email_confirmed": true,
+  "two_factor_status": "enabled",
+  "role": "owner",
+  "balance": "1000.00"
 }
 ```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | User id. |
+| `first_name` | string | Given name. |
+| `last_name` | string | Family name. |
+| `email` | string | Account email. |
+| `email_confirmed` | boolean | Whether the email has been confirmed. |
+| `two_factor_status` | string | `enabled` or `inactive`. |
+| `role` | string | Flat role string. Custom roles report `employee`. |
+| `balance` | string | Wallet balance as a decimal string in USD. |
+
+<Note>
+  The response also carries frontend-oriented fields (`role_details`, `permissions`, `avatar`, `avatar_seed`, `intercom_user_jwt`) that API integrations do not need.
+</Note>

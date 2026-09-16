@@ -162,6 +162,7 @@
           "Transactions"
         ],
         "summary": "List account transactions",
+        "description": "Filters and pagination are both optional; pagination defaults to page 1, 50 per page. `pagination.total_records` and `pagination.total_pages` are always null here — call POST /transactions/count with the same body for the totals.",
         "security": [
           {
             "apiKeyAuth": []
@@ -220,6 +221,7 @@
           "Transactions"
         ],
         "summary": "Count filtered transactions",
+        "description": "Totals for the same filter body POST /transactions takes. Intended to be called in parallel with the page request.",
         "security": [
           {
             "apiKeyAuth": []
@@ -264,6 +266,7 @@
           "Transactions"
         ],
         "summary": "Summarize filtered transactions",
+        "description": "Aggregates the whole filtered set, not just the current page. Card funding and same-account member transfers are net-zero within the account and are excluded from both spent and incoming.",
         "security": [
           {
             "apiKeyAuth": []
@@ -308,6 +311,7 @@
           "Cards"
         ],
         "summary": "Issue cards",
+        "description": "Issues `quantity` cards on one BIN. `balance_type` is required and must be supported by the BIN.",
         "security": [
           {
             "apiKeyAuth": []
@@ -353,6 +357,9 @@
           },
           "404": {
             "description": "Resource not found"
+          },
+          "420": {
+            "description": "Insufficient balance"
           }
         }
       }
@@ -363,6 +370,7 @@
           "Cards"
         ],
         "summary": "List account cards",
+        "description": "Filters and pagination are both optional; pagination defaults to page 1, 50 per page. Money fields are decimal strings on this endpoint.",
         "security": [
           {
             "apiKeyAuth": []
@@ -392,7 +400,7 @@
                     "result": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/Card"
+                        "$ref": "#/components/schemas/CardListItem"
                       }
                     },
                     "pagination": {
@@ -421,6 +429,7 @@
           "Cards"
         ],
         "summary": "Get card details",
+        "description": "Returns the full card, including PAN and CVV when the provider exposes them.",
         "security": [
           {
             "apiKeyAuth": []
@@ -473,6 +482,7 @@
           "Cards"
         ],
         "summary": "Deposit funds to card",
+        "description": "Balance cards only — a limit card has no balance to fund.",
         "security": [
           {
             "apiKeyAuth": []
@@ -525,6 +535,9 @@
           },
           "404": {
             "description": "Resource not found"
+          },
+          "420": {
+            "description": "Insufficient balance"
           }
         }
       }
@@ -535,6 +548,7 @@
           "Cards"
         ],
         "summary": "Withdraw funds from card",
+        "description": "Balance cards only — a limit card has no balance to withdraw from.",
         "security": [
           {
             "apiKeyAuth": []
@@ -587,6 +601,9 @@
           },
           "404": {
             "description": "Resource not found"
+          },
+          "420": {
+            "description": "Insufficient balance"
           }
         }
       }
@@ -762,10 +779,15 @@
         "properties": {
           "page": {
             "type": "integer",
+            "minimum": 1,
+            "default": 1,
             "example": 1
           },
           "per_page": {
             "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50,
             "example": 50
           },
           "sort_by": {
@@ -778,6 +800,7 @@
               "asc",
               "desc"
             ],
+            "default": "desc",
             "example": "desc"
           }
         }
@@ -791,7 +814,9 @@
           },
           "total_records": {
             "type": "integer",
-            "example": 42
+            "nullable": true,
+            "example": 42,
+            "description": "Total matching records. Always null on POST /transactions — call POST /transactions/count for the totals."
           },
           "total_pages": {
             "type": "integer",
@@ -809,7 +834,15 @@
           },
           "status": {
             "type": "string",
-            "example": "allowed"
+            "enum": [
+              "allowed",
+              "blocked",
+              "declined",
+              "pending",
+              "suspended"
+            ],
+            "example": "pending",
+            "description": "Status of the freshly created account. New accounts start as `pending` until onboarding and the activation deposit are complete."
           }
         }
       },
@@ -833,8 +866,27 @@
           },
           "minimal_deposit": {
             "type": "string",
-            "nullable": true,
-            "example": "100.00"
+            "description": "Decimal money string in USD.",
+            "example": "100.00",
+            "nullable": true
+          },
+          "activation_amount": {
+            "type": "string",
+            "description": "Deposit required to activate the account (decimal money string in USD).",
+            "example": "1000.00",
+            "nullable": true
+          },
+          "hold_amount": {
+            "type": "string",
+            "description": "Amount held and released on activation (decimal money string in USD).",
+            "example": "0.00",
+            "nullable": true
+          },
+          "total_hold": {
+            "type": "string",
+            "description": "Total hold released so far, summed from the ledger (decimal money string in USD).",
+            "example": "0.00",
+            "nullable": true
           }
         }
       },
@@ -872,8 +924,15 @@
         "properties": {
           "status": {
             "type": "string",
-            "nullable": true,
-            "example": "allowed"
+            "enum": [
+              "allowed",
+              "blocked",
+              "declined",
+              "pending",
+              "suspended"
+            ],
+            "example": "allowed",
+            "nullable": true
           },
           "limits": {
             "$ref": "#/components/schemas/AccountLimits"
@@ -887,6 +946,7 @@
               "type": "string",
               "nullable": true
             },
+            "description": "Effective fee schedule. Values are stringified verbatim: flat USD amounts and percentages both appear as strings.",
             "example": {
               "transaction_fee": "0.01",
               "business_issuing_fee": "4"
@@ -896,27 +956,73 @@
       },
       "CardType": {
         "type": "object",
+        "required": [
+          "bin_id",
+          "id",
+          "exclusive"
+        ],
         "properties": {
-          "id": {
+          "bin_id": {
             "type": "string",
             "example": "67c401f9a5b7cde210f44567"
           },
-          "name": {
+          "id": {
             "type": "string",
-            "example": "Business"
+            "example": "67c401f9a5b7cde210f44567",
+            "description": "Same value as bin_id, kept for backwards compatibility."
           },
-          "currency": {
+          "BIN": {
             "type": "string",
-            "example": "USD"
+            "example": "505849"
           },
-          "issuing_fee": {
+          "category": {
             "type": "string",
-            "example": "4.00"
+            "enum": [
+              "business",
+              "platinum",
+              "advertising"
+            ],
+            "example": "business"
           },
-          "minimal_deposit": {
+          "status": {
+            "type": "string",
+            "example": "enabled"
+          },
+          "3ds": {
+            "type": "boolean",
+            "example": true
+          },
+          "crossborder_fee": {
+            "type": "boolean",
+            "example": false
+          },
+          "fx_string": {
             "type": "string",
             "nullable": true,
-            "example": "100.00"
+            "example": "1.5%"
+          },
+          "country": {
+            "type": "string",
+            "nullable": true,
+            "example": "US"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "balance_possibility": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether cards on this BIN can run on a stored balance (balance_type \"balance\")."
+          },
+          "limit_possibility": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether cards on this BIN can run on a spending limit (balance_type \"limit\")."
+          },
+          "exclusive": {
+            "type": "boolean",
+            "example": false
           }
         }
       },
@@ -926,29 +1032,57 @@
           "side": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "credit",
+                "debit"
+              ],
+              "example": "debit"
             },
+            "description": "Payment sides to include.",
             "example": [
-              "Debit"
+              "debit"
             ]
           },
           "type": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "adjustment",
+                "card_transaction",
+                "card_deposit",
+                "card_withdraw",
+                "deposit",
+                "fee",
+                "reward",
+                "user_transfer",
+                "account_transfer",
+                "withdraw"
+              ],
+              "example": "card_transaction"
             },
+            "description": "Payment types to include.",
             "example": [
-              "Card"
+              "card_transaction"
             ]
           },
           "status": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "approved",
+                "canceled",
+                "declined",
+                "pending",
+                "processing"
+              ],
+              "example": "approved"
             },
             "example": [
-              "Approved",
-              "Pending"
+              "approved",
+              "pending"
             ]
           },
           "card_id": {
@@ -956,8 +1090,39 @@
             "items": {
               "type": "string"
             },
+            "description": "Card ids to include.",
             "example": [
               "67fc3d0a766d7a2c1fafefb8"
+            ]
+          },
+          "id": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Transaction ids to include. Restricts the result to exactly these transactions; combines (AND) with every other filter.",
+            "example": [
+              "68b2f1c7a1d4e90012ab34cd"
+            ]
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Card tag ids. Keeps only transactions on cards carrying at least one of these tags. Omitted or empty disables tag filtering.",
+            "example": [
+              "67fc3d0a766d7a2c1fafefb7"
+            ]
+          },
+          "merchant_category": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Merchant categories (card_transaction_data.merchant_category, exact match, any of). Only card transactions carry a category, so a non-empty value restricts the result to card transactions.",
+            "example": [
+              "Advertising"
             ]
           },
           "search": {
@@ -974,34 +1139,35 @@
             "format": "date-time",
             "example": "2026-06-30T23:59:59.999Z"
           },
-          "include_internal_transfer": {
+          "include_transfers": {
             "type": "boolean",
-            "example": false
+            "example": false,
+            "description": "Include transfer legs (user_transfer, card_deposit, card_withdraw) in the list."
           },
           "own": {
             "type": "boolean",
-            "example": true
+            "example": true,
+            "description": "Limit results to transactions initiated by the caller."
           },
           "users": {
             "type": "array",
             "items": {
               "type": "string"
             },
+            "description": "Member user ids to include. Available to roles that can see team data.",
             "example": [
               "67fc3d0a766d7a2c1fafefb9"
             ]
           },
           "timezone": {
             "type": "string",
-            "example": "Europe/Warsaw"
+            "example": "Europe/Warsaw",
+            "description": "IANA timezone applied to the date filters."
           }
         }
       },
       "TransactionsRequest": {
         "type": "object",
-        "required": [
-          "pagination"
-        ],
         "properties": {
           "filters": {
             "$ref": "#/components/schemas/TransactionFilters"
@@ -1020,12 +1186,247 @@
           },
           "name": {
             "type": "string",
+            "nullable": true,
             "example": "Marketing card"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "business",
+              "platinum",
+              "advertising"
+            ],
+            "example": "business",
+            "nullable": true
           },
           "masked_PAN": {
             "type": "string",
             "nullable": true,
             "example": "1234 56•• •••• 5678"
+          }
+        }
+      },
+      "PaymentUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "65fc3d09766d7a2c1fafef99"
+          },
+          "first_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Alex"
+          },
+          "last_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Morgan"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "alex@example.com"
+          }
+        }
+      },
+      "PaymentFeeData": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "auth",
+              "crossborder",
+              "decline",
+              "deposit",
+              "exchange",
+              "issuing",
+              "refund",
+              "reversal",
+              "withdraw"
+            ],
+            "example": "crossborder",
+            "nullable": true,
+            "description": "What the fee was charged for."
+          }
+        }
+      },
+      "RelatedFee": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "65fc4e136fb5c06281ac5e4f"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "canceled",
+              "declined",
+              "pending",
+              "processing"
+            ],
+            "example": "approved",
+            "nullable": true
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "credit",
+              "debit"
+            ],
+            "example": "debit",
+            "nullable": true
+          },
+          "amount": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "0.50"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "adjustment",
+              "card_transaction",
+              "card_deposit",
+              "card_withdraw",
+              "deposit",
+              "fee",
+              "reward",
+              "user_transfer",
+              "account_transfer",
+              "withdraw"
+            ],
+            "example": "fee"
+          },
+          "fee_data": {
+            "$ref": "#/components/schemas/PaymentFeeData"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-08-17T10:00:00.000Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-08-17T10:00:00.000Z"
+          }
+        }
+      },
+      "TransferParties": {
+        "type": "object",
+        "properties": {
+          "from_user_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "65fc3d09766d7a2c1fafef99"
+          },
+          "to_user_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "65fc3d09766d7a2c1fafefaa"
+          },
+          "from_first_name": {
+            "type": "string",
+            "example": "Alex"
+          },
+          "from_last_name": {
+            "type": "string",
+            "example": "Morgan"
+          },
+          "to_first_name": {
+            "type": "string",
+            "example": "Sam"
+          },
+          "to_last_name": {
+            "type": "string",
+            "example": "Rivera"
+          }
+        }
+      },
+      "CardTransferData": {
+        "type": "object",
+        "properties": {
+          "card_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "67c48f6fc8614632e0b338fc"
+          },
+          "wallet_user_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "65fc3d09766d7a2c1fafef99",
+            "description": "Whose wallet was the counterparty of the card funding / withdrawal."
+          }
+        }
+      },
+      "CryptoDepositData": {
+        "type": "object",
+        "properties": {
+          "tx": {
+            "type": "string",
+            "nullable": true,
+            "example": "0xabc123"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "USDT"
+          },
+          "original_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": "150"
+          },
+          "network": {
+            "type": "string",
+            "nullable": true,
+            "example": "Tron"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true,
+            "example": "TDepositAddress"
+          },
+          "blockchain_url": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://tronscan.org/#/transaction/0xabc123"
+          }
+        }
+      },
+      "CryptoWithdrawData": {
+        "type": "object",
+        "properties": {
+          "tx": {
+            "type": "string",
+            "nullable": true,
+            "example": "0xabc123"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true,
+            "example": "USDT"
+          },
+          "network": {
+            "type": "string",
+            "nullable": true,
+            "example": "Tron"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true,
+            "example": "TWithdrawAddress"
+          },
+          "blockchain_url": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://tronscan.org/#/transaction/0xabc123"
           }
         }
       },
@@ -1042,19 +1443,41 @@
           },
           "user_id": {
             "type": "string",
+            "nullable": true,
             "example": "65fc3d09766d7a2c1fafef99"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PaymentUser",
+            "nullable": true
           },
           "status": {
             "type": "string",
-            "example": "Approved"
+            "enum": [
+              "approved",
+              "canceled",
+              "declined",
+              "pending",
+              "processing"
+            ],
+            "example": "approved"
           },
           "side": {
             "type": "string",
-            "example": "Credit"
+            "enum": [
+              "credit",
+              "debit"
+            ],
+            "example": "debit"
           },
           "amount": {
-            "type": "number",
-            "example": 150
+            "type": "string",
+            "description": "Decimal money string in USD. For non-fee payments it already includes crossborder fees.",
+            "example": "150.00"
+          },
+          "total_amount": {
+            "type": "string",
+            "description": "Payment amount including related fees: same-side fees are added, opposite-side fees subtracted. Decimal money string in USD.",
+            "example": "151.25"
           },
           "currency": {
             "type": "string",
@@ -1062,7 +1485,19 @@
           },
           "type": {
             "type": "string",
-            "example": "ExternalTransfer"
+            "enum": [
+              "adjustment",
+              "card_transaction",
+              "card_deposit",
+              "card_withdraw",
+              "deposit",
+              "fee",
+              "reward",
+              "user_transfer",
+              "account_transfer",
+              "withdraw"
+            ],
+            "example": "card_transaction"
           },
           "created_at": {
             "type": "string",
@@ -1075,22 +1510,49 @@
           "source_identifier": {
             "type": "string",
             "nullable": true,
-            "example": "USD2156306518"
+            "example": "1234 56•• •••• 5678",
+            "description": "Masked PAN for card rows, the member email for wallet rows."
           },
           "card": {
             "$ref": "#/components/schemas/PaymentCard"
           },
-          "card_data": {
+          "card_transaction_data": {
             "type": "object",
             "additionalProperties": true
           },
           "fee_data": {
-            "type": "object",
-            "additionalProperties": true
+            "$ref": "#/components/schemas/PaymentFeeData"
           },
-          "external_transfer_data": {
-            "type": "object",
-            "additionalProperties": true
+          "related_fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedFee"
+            },
+            "description": "Same-account fee payments linked to this one. Crossborder fees are not listed here — they are only reflected in amount / total_amount."
+          },
+          "user_transfer_data": {
+            "$ref": "#/components/schemas/TransferParties"
+          },
+          "account_transfer_data": {
+            "$ref": "#/components/schemas/TransferParties"
+          },
+          "card_deposit_data": {
+            "$ref": "#/components/schemas/CardTransferData"
+          },
+          "card_withdraw_data": {
+            "$ref": "#/components/schemas/CardTransferData"
+          },
+          "deposit_data": {
+            "$ref": "#/components/schemas/CryptoDepositData"
+          },
+          "withdraw_data": {
+            "$ref": "#/components/schemas/CryptoWithdrawData"
+          },
+          "rule_execution_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "68b2f1c7a1d4e90012ab34ce",
+            "description": "The automation-rule run this row belongs to, null on everything a rule never touched."
           }
         }
       },
@@ -1112,26 +1574,27 @@
         "properties": {
           "spent": {
             "type": "string",
+            "description": "Decimal money string in USD.",
             "example": "1250.00"
           },
           "incoming": {
             "type": "string",
+            "description": "Decimal money string in USD.",
             "example": "2500.00"
-          },
-          "pending": {
-            "type": "string",
-            "example": "100.00"
           },
           "fees": {
             "type": "string",
+            "description": "Decimal money string in USD.",
             "example": "15.00"
           },
           "declined": {
             "type": "string",
+            "description": "Decimal money string in USD.",
             "example": "0.00"
           },
           "net": {
             "type": "string",
+            "description": "incoming − spent − fees. Decimal money string in USD.",
             "example": "1235.00"
           }
         }
@@ -1142,11 +1605,38 @@
           "status": {
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "blocked",
+                "closed",
+                "closing",
+                "enabled",
+                "freezed",
+                "freezing",
+                "processing",
+                "unreezing"
+              ],
+              "example": "enabled"
             },
             "example": [
               "enabled",
-              "canceled"
+              "freezed"
+            ]
+          },
+          "balance_type": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "balance",
+                "limit"
+              ],
+              "example": "limit"
+            },
+            "description": "Keep only cards of these balance models. Pass one (\"balance\" or \"limit\") or both.",
+            "example": [
+              "balance",
+              "limit"
             ]
           },
           "own": {
@@ -1187,9 +1677,6 @@
       },
       "CardsRequest": {
         "type": "object",
-        "required": [
-          "pagination"
-        ],
         "properties": {
           "filters": {
             "$ref": "#/components/schemas/CardFilters"
@@ -1203,12 +1690,22 @@
         "type": "object",
         "required": [
           "bin_id",
-          "name"
+          "name",
+          "balance_type"
         ],
         "properties": {
           "bin_id": {
             "type": "string",
             "example": "67c401f9a5b7cde210f44567"
+          },
+          "balance_type": {
+            "type": "string",
+            "enum": [
+              "balance",
+              "limit"
+            ],
+            "example": "limit",
+            "description": "Whether the card runs on a stored balance or a spending limit. The chosen model must be supported by the BIN (see balance_possibility / limit_possibility on GET /bins)."
           },
           "user_id": {
             "type": "string",
@@ -1232,15 +1729,229 @@
           },
           "quantity": {
             "type": "integer",
-            "example": 1
+            "minimum": 1,
+            "example": 1,
+            "description": "Number of cards to issue. Either quantity or the legacy alias amount must be present."
           },
           "amount": {
             "type": "integer",
-            "example": 100
+            "minimum": 1,
+            "example": 1,
+            "description": "Legacy alias for quantity. Prefer quantity."
+          },
+          "limit_amount": {
+            "type": "number",
+            "nullable": true,
+            "maximum": 1000000,
+            "example": 500,
+            "description": "Spending limit for balance_type \"limit\". null = unlimited card, 0 = card cannot spend. Ignored for balance cards."
+          },
+          "limit_period": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "seven_days",
+              "thirty_days",
+              "all_time",
+              "per_transaction"
+            ],
+            "example": "thirty_days",
+            "description": "Reset period of the spending limit. Only for balance_type \"limit\"; defaults to \"all_time\" when a limit amount is given without a period. \"per_transaction\" caps each single operation instead of a rolling window."
           },
           "promo": {
             "type": "string",
             "example": "WELCOME"
+          }
+        }
+      },
+      "CardHolder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67aa1b2c3d4e5f6789abcdef"
+          },
+          "first_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Alex"
+          },
+          "last_name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Morgan"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "alex@example.com"
+          }
+        }
+      },
+      "CardTag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67fc3d0a766d7a2c1fafefb7"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ads"
+          },
+          "color": {
+            "type": "string",
+            "example": "#3B66FF"
+          }
+        }
+      },
+      "CardListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "67c48f6fc8614632e0b338fc"
+          },
+          "name": {
+            "type": "string",
+            "example": "Marketing card"
+          },
+          "bin": {
+            "type": "string",
+            "example": "505849",
+            "description": "Human-readable 6-digit BIN."
+          },
+          "bin_id": {
+            "type": "string",
+            "example": "67bcf2abf8e89d31c5f8995e"
+          },
+          "account": {
+            "type": "string",
+            "example": "67c401f9a5b7cde210f44567"
+          },
+          "user": {
+            "type": "string",
+            "example": "67aa1b2c3d4e5f6789abcdef"
+          },
+          "holder": {
+            "$ref": "#/components/schemas/CardHolder",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "closed",
+              "closing",
+              "enabled",
+              "freezed",
+              "freezing",
+              "processing",
+              "unreezing"
+            ],
+            "example": "enabled"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "business",
+              "platinum",
+              "advertising"
+            ],
+            "example": "business"
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "masked_PAN": {
+            "type": "string",
+            "nullable": true,
+            "example": "1234 56•• •••• 5678"
+          },
+          "EXP": {
+            "type": "string",
+            "example": "**/**"
+          },
+          "balance": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "50.00"
+          },
+          "deposit": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "1000.00"
+          },
+          "withdraw": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "500.00"
+          },
+          "balance_type": {
+            "type": "string",
+            "enum": [
+              "balance",
+              "limit"
+            ],
+            "example": "limit",
+            "nullable": true
+          },
+          "limit_amount": {
+            "type": "string",
+            "description": "Spending limit (decimal money string in USD), or null for balance cards and unlimited limit cards.",
+            "example": "500.00",
+            "nullable": true
+          },
+          "limit_period": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "seven_days",
+              "thirty_days",
+              "all_time",
+              "per_transaction"
+            ],
+            "example": "thirty_days",
+            "nullable": true
+          },
+          "limit_spent": {
+            "type": "string",
+            "description": "Spend already used in the current limit window. Lifetime total for an unlimited card; null for \"per_transaction\".",
+            "example": "123.45",
+            "nullable": true
+          },
+          "balance_possibility": {
+            "type": "boolean",
+            "example": true
+          },
+          "limit_possibility": {
+            "type": "boolean",
+            "example": true
+          },
+          "auto_deposit": {
+            "type": "boolean",
+            "example": false
+          },
+          "balance_threshold": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "25.00"
+          },
+          "top_up_amount": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "100.00"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardTag"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -1261,23 +1972,51 @@
           },
           "notes": {
             "type": "string",
-            "example": "Credit"
+            "example": "Q3 campaigns"
           },
-          "status": {
+          "account": {
             "type": "string",
-            "example": "Active"
+            "example": "67c401f9a5b7cde210f44567"
           },
           "user": {
             "type": "string",
             "example": "67aa1b2c3d4e5f6789abcdef"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "blocked",
+              "closed",
+              "closing",
+              "enabled",
+              "freezed",
+              "freezing",
+              "processing",
+              "unreezing"
+            ],
+            "example": "enabled"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "business",
+              "platinum",
+              "advertising"
+            ],
+            "example": "business"
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "masked_PAN": {
+            "type": "string",
+            "nullable": true,
+            "example": "1234 56•• •••• 5678"
+          },
           "EXP": {
             "type": "string",
             "example": "**/**"
-          },
-          "account": {
-            "type": "string",
-            "example": "67c401f9a5b7cde210f44567"
           },
           "balance": {
             "type": "number",
@@ -1285,39 +2024,68 @@
           },
           "deposit": {
             "type": "number",
-            "example": 1000
+            "example": 1000,
+            "description": "Lifetime total deposited to the card."
           },
           "withdraw": {
             "type": "number",
-            "example": 500
+            "example": 500,
+            "description": "Lifetime total withdrawn from the card."
           },
-          "spent": {
+          "balance_type": {
+            "type": "string",
+            "enum": [
+              "balance",
+              "limit"
+            ],
+            "example": "limit",
+            "nullable": true
+          },
+          "limit_amount": {
             "type": "number",
-            "example": 450
+            "nullable": true,
+            "example": 500,
+            "description": "Spending limit, or null for balance cards and unlimited limit cards."
           },
-          "masked_PAN": {
+          "limit_period": {
             "type": "string",
-            "example": "1234 56•• •••• 5678"
+            "enum": [
+              "one_day",
+              "seven_days",
+              "thirty_days",
+              "all_time",
+              "per_transaction"
+            ],
+            "example": "thirty_days",
+            "nullable": true
           },
-          "currency": {
-            "type": "string",
-            "example": "USD"
+          "balance_possibility": {
+            "type": "boolean",
+            "example": true
           },
-          "category": {
-            "type": "string",
-            "example": "Business"
+          "limit_possibility": {
+            "type": "boolean",
+            "example": true
+          },
+          "auto_deposit": {
+            "type": "boolean",
+            "example": false
+          },
+          "balance_threshold": {
+            "type": "number",
+            "example": 25
+          },
+          "top_up_amount": {
+            "type": "number",
+            "example": 100
           },
           "created_at": {
             "type": "string",
             "format": "date-time"
           },
-          "PAN": {
+          "updated_at": {
             "type": "string",
-            "example": "1234567812345678"
-          },
-          "CVV": {
-            "type": "string",
-            "example": "123"
+            "format": "date-time"
           },
           "3ds": {
             "type": "boolean",
@@ -1326,6 +2094,16 @@
           "address": {
             "type": "string",
             "example": "2381 Zanker Rd Ste 110, San Jose, CA, 95131, US"
+          },
+          "PAN": {
+            "type": "string",
+            "example": "1234 5678 1234 5678",
+            "description": "Full card number. Only returned by GET /cards/{card_id}."
+          },
+          "CVV": {
+            "type": "string",
+            "example": "123",
+            "description": "Card CVV. Only returned by GET /cards/{card_id}."
           }
         }
       },
@@ -1341,7 +2119,8 @@
           },
           "user_id": {
             "type": "string",
-            "example": "67fc3d09766d7a2c1fafef99"
+            "example": "67fc3d09766d7a2c1fafef99",
+            "description": "Whose wallet funds the deposit. Defaults to the card holder."
           }
         }
       },
