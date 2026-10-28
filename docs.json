@@ -85,6 +85,7 @@
             "openapi": "openapi.json",
             "pages": [
               "POST /transactions",
+              "POST /transactions/{transaction_id}/aml-refund",
               "POST /transactions/count",
               "POST /transactions/summary"
             ]
