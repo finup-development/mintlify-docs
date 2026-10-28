@@ -7,12 +7,12 @@ icon: "webhook"
 Finup can send server-to-server webhook events to your HTTPS endpoint after account activity changes. Subscribe once per account, get the signing secret from the subscription details endpoint, and verify every delivery with the `x-webhook-signature` header.
 
 <Info>
-  Webhook subscription endpoints use API key authentication. Send your API key in the `x-api-key` header.
+  Webhook subscription endpoints use API key authentication. Send your API key in the `x-api-key` header. They need API access enabled for the account (otherwise `403` with `API_ACCESS_DISABLED`) and the `can_manage_api_keys` permission.
 </Info>
 
 ## Subscribe
 
-Create a subscription with the URL that should receive webhook events.
+Create a subscription with the URL that should receive webhook events. The URL must resolve to a public address: private, loopback and other internal ranges are rejected.
 
 ```bash
 curl --request POST "https://api.finup.io/backend/webhooks" \
@@ -37,7 +37,7 @@ The response contains the created subscription record.
 }
 ```
 
-Use `GET /webhooks/webhooks` after creation as the source for the usable plaintext signing secret. Do not use the create or update response as the source of truth for signature verification.
+Use `GET /webhooks` after creation as the source for the usable plaintext signing secret. Do not use the create or update response as the source of truth for signature verification.
 
 Only one subscription is allowed per account. Creating a second subscription returns `404` with `Account Already subscribed`.
 
@@ -62,6 +62,8 @@ curl --request GET "https://api.finup.io/backend/webhooks" \
 }
 ```
 
+Without a subscription, `result` is an empty array.
+
 Store `secret` server-side. Use it to verify the `x-webhook-signature` header on every delivery.
 
 Update the destination URL or pause delivery:
@@ -78,7 +80,7 @@ curl --request PATCH "https://api.finup.io/backend/webhooks" \
 
 Use `status: "disabled"` to pause delivery. Disabled subscriptions do not receive new webhook events.
 
-When a subscription already exists, a successful update returns:
+If the account has no subscription yet, `PATCH /webhooks` creates one and returns it like `POST /webhooks`. When a subscription already exists, a successful update returns:
 
 ```json
 {
@@ -120,7 +122,7 @@ function verifyFinupWebhook(body, signature, secret) {
 }
 ```
 
-Return any `2xx` response when your system has accepted the event. Finup stores your response body and status code in delivery history.
+Return any `2xx` response within 10 seconds when your system has accepted the event. Redirects are not followed, so a `3xx` counts as a failed attempt. Delivery history keeps the status code and time of every attempt.
 
 ## Retries
 
@@ -144,7 +146,7 @@ Your endpoint should be idempotent. Finup may deliver the same event more than o
 
 ## Delivery history
 
-Use delivery history to inspect sent events, retry status, response bodies, and response status codes.
+Use delivery history to inspect sent events, retry status, and the status code of each attempt.
 
 ```bash
 curl --request POST "https://api.finup.io/backend/webhooks/history" \
@@ -166,7 +168,7 @@ Each history item includes:
 | --- | --- |
 | `body` | Webhook payload sent to your endpoint |
 | `config` | Delivery headers, including the signature used for the attempt |
-| `responses` | Stored response body, time, and status code for each attempt |
+| `responses` | Status code and time of each attempt |
 | `last_sending` | Last attempt time |
 | `next_sending` | Next retry time while status is `pending` |
 | `attempts` | Number of attempts already made |
@@ -184,7 +186,7 @@ Example response:
         "masked_PAN": "1234 56** **** 5678",
         "name": "Marketing card",
         "account_id": "67fc3d0a766d7a2c1fafefb9",
-        "status": "Enabled",
+        "status": "enabled",
         "updated_at": "2026-07-08T12:00:00.000Z",
         "webhook_type": "CardUpdate"
       },
@@ -194,9 +196,8 @@ Example response:
       },
       "responses": [
         {
-          "response": { "received": true },
-          "time": "2026-07-08T12:00:00.000Z",
-          "status_code": 200
+          "status_code": 200,
+          "time": "2026-07-08T12:00:00.000Z"
         }
       ],
       "url": "https://example.com/finup/webhooks",
@@ -239,19 +240,18 @@ Sent when the Backend service updates card status data.
 
 ### Transaction
 
-Sent when a card transaction is created or updated.
+Sent when a card transaction is created or updated. `status`, `side` and `type` use the same values as `POST /transactions`.
 
 ```json
 {
   "id": "69289796211cd0ba00ecc9db",
   "account_id": "6878f06012024f0a66f1b833",
-  "source_id": "6900c4a4611a0d534ad72956",
-  "source": "Card",
-  "status": "Approved",
-  "side": "Debit",
+  "card_id": "6900c4a4611a0d534ad72956",
+  "status": "approved",
+  "side": "debit",
   "amount": 30,
   "currency": "USD",
-  "type": "Card",
+  "type": "card_transaction",
   "created_at": "2026-07-08T12:00:00.000Z",
   "updated_at": "2026-07-08T12:00:00.000Z",
   "card": {
@@ -271,7 +271,7 @@ Sent when a card transaction is created or updated.
 
 ### Deposit
 
-Sent when a crypto or invoice deposit is approved.
+Sent when a crypto or invoice deposit is approved, when a deposit is blocked by the AML check (`Declined`), and when a blocked deposit has been refunded (`Canceled`).
 
 ```json
 {
