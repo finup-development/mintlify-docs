@@ -15,8 +15,12 @@ Do not hand-edit `openapi.json`. Change the generator in the Backend repository 
 | Group | Included now |
 | --- | --- |
 | Accounts | Create account, get account capabilities, card bins |
-| Transactions | Transaction list, count, summary |
+| Transactions | Transaction list, count, summary, AML refund of a blocked deposit |
 | Cards | Issue, list, get, deposit, withdraw, freeze, unfreeze, close |
+
+## Response envelope
+
+Most responses wrap the payload in `result`. `GET /account`, `POST /transactions/count`, `POST /transactions/summary` and `GET /user` return the object bare.
 
 ## Money values
 
