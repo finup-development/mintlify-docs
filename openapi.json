@@ -74,7 +74,7 @@
           "Accounts"
         ],
         "summary": "Get account capabilities",
-        "description": "Returns current account limits, capabilities, status, and fees.",
+        "description": "Returns current account limits, capabilities, status, and fees. Unlike most endpoints, the response is not wrapped in `result`.",
         "security": [
           {
             "apiKeyAuth": []
@@ -86,15 +86,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "required": [
-                    "result"
-                  ],
-                  "properties": {
-                    "result": {
-                      "$ref": "#/components/schemas/CurrentAccount"
-                    }
-                  }
+                  "$ref": "#/components/schemas/CurrentAccount"
                 }
               }
             }
@@ -211,6 +203,82 @@
           },
           "404": {
             "description": "Resource not found"
+          }
+        }
+      }
+    },
+    "/transactions/{transaction_id}/aml-refund": {
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Refund a deposit blocked by the AML check",
+        "description": "Sends a crypto deposit that failed the AML check (`deposit_data.aml_declined`, status `declined`) back out to the given address. Nothing was credited, so nothing is taken back. Callable by the member the deposit was addressed to or the account owner, with `can_withdraw` and the same TOTP rule as withdrawals.\n\nReturns as soon as the crypto service accepts the request. The outcome arrives asynchronously: on success the transaction becomes `canceled` and `deposit_data.refund` carries `tx_hash`, `blockchain_url` and the `amount` sent; on failure `deposit_data.refund.status` is `failed` with an `error_code` and the request can be sent again. Poll POST /transactions for the outcome. Finup charges no fee, but the network fee is taken out of the transfer (on Tron up to 3 USDT).",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "description": "Transaction id of the blocked deposit, from POST /transactions.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmlRefundRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "result"
+                  ],
+                  "properties": {
+                    "result": {
+                      "$ref": "#/components/schemas/AmlRefund"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Code missing, or the address is the deposit address, invalid on the deposit network, or belongs to Finup"
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "description": "Insufficient permission for this operation"
+          },
+          "404": {
+            "description": "Resource not found"
+          },
+          "409": {
+            "description": "The deposit is not refundable, or a refund already exists for it"
+          },
+          "422": {
+            "description": "Invalid 2FA code"
+          },
+          "428": {
+            "description": "2FA is not enabled for the caller"
           }
         }
       }
@@ -370,7 +438,7 @@
           "Cards"
         ],
         "summary": "List account cards",
-        "description": "Filters and pagination are both optional; pagination defaults to page 1, 50 per page. Money fields are decimal strings on this endpoint.",
+        "description": "Filters and pagination are both optional; pagination defaults to page 1, 50 per page. Money fields are decimal strings on this endpoint.\n\n`sort_by`: created_at | balance | name | holder | tags | spend | transactions | declined_transactions | decline_rate | fees | average_transaction_amount. holder sorts by the owner's \"first last\" name, tags by the alphabetically first tag name (case-insensitive). Metric sorts read `metrics_window` (thirty_days when omitted), a card without metrics counts as 0. createdAt desc breaks ties.",
         "security": [
           {
             "apiKeyAuth": []
@@ -405,6 +473,10 @@
                     },
                     "pagination": {
                       "$ref": "#/components/schemas/Pagination"
+                    },
+                    "summary": {
+                      "$ref": "#/components/schemas/CardsSummary",
+                      "description": "Present only when `metrics_window` is sent. Totals over the whole filtered set (all pages)."
                     }
                   }
                 }
@@ -429,7 +501,7 @@
           "Cards"
         ],
         "summary": "Get card details",
-        "description": "Returns the full card, including PAN and CVV when the provider exposes them.",
+        "description": "Returns the full card. PAN, CVV, PIN and the 3DS password are included only for the card holder or a member with `can_manage_team_cards`, and never for a closed card. Seeing another member's card needs `can_see_team_data`.",
         "security": [
           {
             "apiKeyAuth": []
@@ -527,6 +599,9 @@
               }
             }
           },
+          "400": {
+            "description": "Limit card: it has no balance to move"
+          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -536,8 +611,14 @@
           "404": {
             "description": "Resource not found"
           },
+          "409": {
+            "description": "Card is still processing, or the provider limit update failed"
+          },
           "420": {
             "description": "Insufficient balance"
+          },
+          "429": {
+            "description": "Another transfer on this card is in progress, retry"
           }
         }
       }
@@ -593,6 +674,9 @@
               }
             }
           },
+          "400": {
+            "description": "Limit card: it has no balance to move"
+          },
           "401": {
             "description": "Missing or invalid credentials"
           },
@@ -602,8 +686,14 @@
           "404": {
             "description": "Resource not found"
           },
+          "409": {
+            "description": "Card is still processing, or the provider limit update failed"
+          },
           "420": {
             "description": "Insufficient balance"
+          },
+          "429": {
+            "description": "Another transfer on this card is in progress, retry"
           }
         }
       }
@@ -854,15 +944,27 @@
             "nullable": true,
             "example": 50
           },
-          "free_cards": {
+          "max_members": {
             "type": "integer",
             "nullable": true,
-            "example": 3
+            "example": 10,
+            "description": "Team size cap; null = no cap."
+          },
+          "max_pending_invites": {
+            "type": "integer",
+            "nullable": true,
+            "example": 5,
+            "description": "Cap on open team invites; null = no cap."
+          },
+          "free_cards": {
+            "type": "integer",
+            "example": 3,
+            "description": "The account's free-card grant plus the calling member's own grant. The two are separate pools and both are spendable by this member."
           },
           "used_free_cards": {
             "type": "integer",
-            "nullable": true,
-            "example": 1
+            "example": 1,
+            "description": "Free cards already spent, summed over the same two pools."
           },
           "minimal_deposit": {
             "type": "string",
@@ -895,15 +997,18 @@
         "properties": {
           "business_access": {
             "type": "boolean",
-            "example": true
+            "example": true,
+            "description": "The account's business access AND the calling member's."
           },
           "advertising_access": {
             "type": "boolean",
-            "example": false
+            "example": false,
+            "description": "The account's advertising access AND the calling member's."
           },
           "platinum_access": {
             "type": "boolean",
-            "example": false
+            "example": false,
+            "description": "The account's platinum access AND the calling member's."
           },
           "api_access": {
             "type": "boolean",
@@ -916,6 +1021,11 @@
           "negative_balance_guard": {
             "type": "boolean",
             "example": true
+          },
+          "negative_balance_autocover": {
+            "type": "boolean",
+            "example": false,
+            "description": "Negative card balances are covered automatically out of the cardholder's wallet."
           }
         }
       },
@@ -950,6 +1060,32 @@
             "example": {
               "transaction_fee": "0.01",
               "business_issuing_fee": "4"
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "object",
+                "nullable": true,
+                "additionalProperties": true,
+                "description": "Lifetime account metrics as raw numbers (transactions, approved_transactions, pending_transactions, declined_transactions, spend, deposit, fees, cards, active_cards, auth_rate, recalculated_at). Null until they are first calculated."
+              }
+            }
+          },
+          "onboarding": {
+            "type": "object",
+            "properties": {
+              "filled": {
+                "type": "boolean",
+                "example": true,
+                "description": "True once the onboarding questionnaire has been submitted."
+              },
+              "filled_at": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
             }
           }
         }
@@ -1365,6 +1501,82 @@
           }
         }
       },
+      "AmlRefund": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "processing",
+              "completed",
+              "failed"
+            ],
+            "example": "requested",
+            "description": "requested — accepted by the crypto service; processing — being sent; completed — sent, see tx_hash and blockchain_url, and the transaction itself is now canceled; failed — nothing left Finup, the deposit is still declined and the refund can be asked for again."
+          },
+          "withdraw_address": {
+            "type": "string",
+            "example": "TQ5NMqJjjkDWbYi1dmQ8e3n8ZHPyYsMQxA",
+            "description": "Address the blocked deposit is being sent back to."
+          },
+          "amount": {
+            "type": "string",
+            "nullable": true,
+            "example": null,
+            "description": "Amount actually sent back, in the deposit currency. The provider takes the network fee out of the transfer (on Tron up to 3 USDT), so it is only known once the refund is sent."
+          },
+          "fee_amount": {
+            "type": "string",
+            "nullable": true,
+            "example": null,
+            "description": "Network fee the provider took out of the transfer, in the deposit currency; null until the refund is sent."
+          },
+          "tx_hash": {
+            "type": "string",
+            "nullable": true,
+            "example": null,
+            "description": "Hash of the refund transaction; null until it is confirmed."
+          },
+          "blockchain_url": {
+            "type": "string",
+            "nullable": true,
+            "example": null,
+            "description": "Block explorer link for tx_hash, ready to show as-is."
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true,
+            "example": null,
+            "description": "Machine-readable failure reason, null unless status is failed: insufficient_gas, insufficient_balance, transaction_reverted, provider_unavailable or transfer_failed. Map it to your own wording."
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "AmlRefundTerms": {
+        "type": "object",
+        "properties": {
+          "fee_amount": {
+            "type": "string",
+            "example": "3",
+            "description": "Network fee the refund is expected to cost, in the deposit currency. Quoted when the deposit was blocked; it can only go down by the time the refund is sent."
+          },
+          "net_amount": {
+            "type": "string",
+            "example": "147",
+            "description": "Amount the user is expected to receive: original_amount minus fee_amount."
+          }
+        }
+      },
       "CryptoDepositData": {
         "type": "object",
         "properties": {
@@ -1397,6 +1609,37 @@
             "type": "string",
             "nullable": true,
             "example": "https://tronscan.org/#/transaction/0xabc123"
+          },
+          "aml_declined": {
+            "type": "boolean",
+            "example": true,
+            "description": "Present and true only on a deposit the AML check blocked. Such a deposit stays in status declined: nothing was credited and the funds are still on the deposit address, waiting to be returned. The risk score behind the decision is never exposed."
+          },
+          "refund_terms": {
+            "$ref": "#/components/schemas/AmlRefundTerms"
+          },
+          "refund": {
+            "$ref": "#/components/schemas/AmlRefund"
+          }
+        }
+      },
+      "AmlRefundRequest": {
+        "type": "object",
+        "required": [
+          "withdraw_address"
+        ],
+        "properties": {
+          "withdraw_address": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 128,
+            "example": "TQ5NMqJjjkDWbYi1dmQ8e3n8ZHPyYsMQxA",
+            "description": "Address the deposit is sent back to, on the network it arrived on. Must not be the deposit address itself."
+          },
+          "code": {
+            "type": "string",
+            "example": "123456",
+            "description": "TOTP code. Required unless the account is suspended or blocked and the user has no 2FA enabled."
           }
         }
       },
@@ -1683,6 +1926,117 @@
           },
           "pagination": {
             "$ref": "#/components/schemas/PaginationInput"
+          },
+          "metrics_window": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "seven_days",
+              "fifteen_days",
+              "thirty_days",
+              "sixty_days",
+              "ninety_days",
+              "total"
+            ],
+            "example": "thirty_days",
+            "description": "Metrics window. When set, every row carries `period_metrics` and the response carries `summary` over the whole filtered set."
+          }
+        }
+      },
+      "CardPeriodMetrics": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "seven_days",
+              "fifteen_days",
+              "thirty_days",
+              "sixty_days",
+              "ninety_days",
+              "total"
+            ],
+            "example": "thirty_days"
+          },
+          "spend": {
+            "type": "string",
+            "description": "Net spend in the window (debits minus refunds). Decimal money string in USD.",
+            "example": "1250.40"
+          },
+          "transactions": {
+            "type": "integer",
+            "example": 42
+          },
+          "declined_transactions": {
+            "type": "integer",
+            "example": 3
+          },
+          "decline_rate": {
+            "type": "number",
+            "example": 7.14,
+            "description": "Declined share of transactions, percent."
+          },
+          "fees": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "12.50"
+          },
+          "average_transaction_amount": {
+            "type": "string",
+            "description": "`spend` / non-declined transactions. Decimal money string in USD.",
+            "example": "32.06"
+          },
+          "recalculated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CardsSummary": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "seven_days",
+              "fifteen_days",
+              "thirty_days",
+              "sixty_days",
+              "ninety_days",
+              "total"
+            ],
+            "example": "thirty_days"
+          },
+          "cards": {
+            "type": "integer",
+            "example": 120,
+            "description": "Cards in the whole filtered set."
+          },
+          "active_cards": {
+            "type": "integer",
+            "example": 85,
+            "description": "Cards with at least one transaction in the window."
+          },
+          "spend": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "48210.75"
+          },
+          "transactions": {
+            "type": "integer",
+            "example": 1630
+          },
+          "declined_transactions": {
+            "type": "integer",
+            "example": 41
+          },
+          "fees": {
+            "type": "string",
+            "description": "Decimal money string in USD.",
+            "example": "310.20"
           }
         }
       },
@@ -1952,6 +2306,10 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "period_metrics": {
+            "$ref": "#/components/schemas/CardPeriodMetrics",
+            "description": "Present only when `metrics_window` is sent. Zeros for a card without activity."
           }
         }
       },
@@ -2091,6 +2449,11 @@
             "type": "boolean",
             "example": true
           },
+          "3ds_password": {
+            "type": "string",
+            "example": "123456",
+            "description": "Static 3DS password of the BIN. Same visibility as PAN, and only on 3DS BINs."
+          },
           "address": {
             "type": "string",
             "example": "2381 Zanker Rd Ste 110, San Jose, CA, 95131, US"
@@ -2098,12 +2461,17 @@
           "PAN": {
             "type": "string",
             "example": "1234 5678 1234 5678",
-            "description": "Full card number. Only returned by GET /cards/{card_id}."
+            "description": "Full card number. Only on GET /cards/{card_id}, for the card holder or a member with `can_manage_team_cards`, and never for a closed card."
           },
           "CVV": {
             "type": "string",
             "example": "123",
-            "description": "Card CVV. Only returned by GET /cards/{card_id}."
+            "description": "Card CVV. Same visibility as PAN."
+          },
+          "PIN": {
+            "type": "string",
+            "example": "1234",
+            "description": "Card PIN when the card has one. Same visibility as PAN."
           }
         }
       },
@@ -2120,7 +2488,7 @@
           "user_id": {
             "type": "string",
             "example": "67fc3d09766d7a2c1fafef99",
-            "description": "Whose wallet funds the deposit. Defaults to the card holder."
+            "description": "Whose wallet funds the deposit. Defaults to the caller's own wallet. Another member's wallet needs `can_move_team_funds`."
           }
         }
       },
@@ -2133,6 +2501,11 @@
           "amount": {
             "type": "number",
             "example": 100
+          },
+          "user_id": {
+            "type": "string",
+            "example": "67fc3d09766d7a2c1fafef99",
+            "description": "Whose wallet receives the funds. Defaults to the caller's own wallet. Another member's wallet needs `can_move_team_funds`."
           }
         }
       },

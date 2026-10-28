@@ -9,9 +9,12 @@ Errors use an HTTP status code and a JSON body.
 ```json
 {
   "status_code": 400,
+  "error_code": "VALIDATION",
   "error_message": "Validation failed"
 }
 ```
+
+Branch on `error_code`, not on `error_message`: the text is not part of the contract. Common codes: `VALIDATION`, `UNAUTHORIZED`, `FORBIDDEN`, `PERMISSION_DENIED`, `NOT_FOUND`, `CONFLICT`, `INSUFFICIENT_FUNDS`, `INVALID_2FA`, `RATE_LIMITED`, `API_ACCESS_DISABLED`.
 
 | Status | Meaning |
 | --- | --- |
@@ -21,7 +24,9 @@ Errors use an HTTP status code and a JSON body.
 | `404` | Resource not found |
 | `409` | State conflict |
 | `420` | Insufficient balance |
-| `429` | Rate limit exceeded |
+| `422` | Invalid 2FA code |
+| `428` | 2FA is required for this operation |
+| `429` | Rate limit exceeded, or another operation on the same resource is in progress |
 
 <Tip>
   Log the HTTP status, request id if present, endpoint, and sanitized request metadata. Do not log API keys, tokens, full card data, or customer secrets.

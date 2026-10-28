@@ -36,6 +36,9 @@ Authentication failures return `401`.
 ```json
 {
   "status_code": 401,
+  "error_code": "UNAUTHORIZED",
   "error_message": "Unauthorized"
 }
 ```
+
+API keys work only while API access is enabled for the account. Each request also runs with the permissions of the member who owns the key, so a missing permission returns `403`.
